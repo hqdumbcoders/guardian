@@ -1,0 +1,27 @@
+_gitignore/
+*.log
+
+# artifacts from pprof tooling
+*.prof
+*.test
+
+# build artifacts and helpers
+cmd/guardian/guardian
+cmd/guardian/guardian.exe
+cmd/guardian/tmp/*.exe
+cmd/guardian/.env
+
+# mac specific
+.DS_Store
+
+# go modules
+vendor
+
+# goreleaser artifacts
+dist
+guardian-build
+guardian-dist
+
+# IDE files
+.idea/
+.vscode/
