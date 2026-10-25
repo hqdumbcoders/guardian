@@ -1,13 +1,19 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"net/http"
 )
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("OK"))
+	if r.Method == "GET" {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	} else {
+		w.Header().Set("Allow", "GET")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		w.Write([]byte("405 Not Allowed"))
+	}
 }
 
 func main() {
@@ -16,7 +22,7 @@ func main() {
 	err := http.ListenAndServe(":8080", nil)
 
 	if err != nil {
-		fmt.Println("server error: ", err)
+		log.Fatal(err)
 	}
 
 }
