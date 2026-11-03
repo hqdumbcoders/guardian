@@ -21,3 +21,19 @@ func TestHealthHandler(t *testing.T) {
 	}
 
 }
+
+func TestHealthHandlerMethodNotAllowed(t *testing.T) {
+	request := httptest.NewRequest("POST", "/health", nil)
+	recorder := httptest.NewRecorder()
+
+	healthHandler(recorder, request)
+
+	if recorder.Code != http.StatusMethodNotAllowed {
+		t.Errorf("expected: %d, received: %d", http.StatusMethodNotAllowed, recorder.Code)
+	}
+
+	if recorder.Body.String() != "405 Not Allowed" {
+		t.Errorf("expected: %s, received: %s", "405 Not Allowed", recorder.Body.String())
+	}
+
+}
