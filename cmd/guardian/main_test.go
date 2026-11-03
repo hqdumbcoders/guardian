@@ -36,4 +36,8 @@ func TestHealthHandlerMethodNotAllowed(t *testing.T) {
 		t.Errorf("expected: %s, received: %s", "405 Not Allowed", recorder.Body.String())
 	}
 
+	if recorder.Header().Get("Allow") != "GET" {
+		t.Errorf("expected: %s, received: %s", "GET", recorder.Header().Get("Allow"))
+	}
+
 }
