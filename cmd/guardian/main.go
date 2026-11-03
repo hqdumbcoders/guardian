@@ -1,8 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
+)
+
+const (
+	appName    = "Slotty"
+	appVersion = "0.1.0"
 )
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
@@ -17,6 +23,7 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	fmt.Printf("starting: %s %s\n", appName, appVersion)
 	http.HandleFunc("/health", healthHandler)
 
 	err := http.ListenAndServe(":8080", nil)
