@@ -6,7 +6,7 @@ import (
 )
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "GET" {
+	if r.Method == http.MethodGet {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
 	} else {
