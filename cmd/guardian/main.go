@@ -24,12 +24,12 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	fmt.Printf("starting: %s %s\n", appName, appVersion)
-	http.HandleFunc("/health", healthHandler)
 
-	err := http.ListenAndServe(":8080", nil)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/health", healthHandler)
 
+	err := http.ListenAndServe(":8080", mux)
 	if err != nil {
 		log.Fatal(err)
 	}
-
 }
