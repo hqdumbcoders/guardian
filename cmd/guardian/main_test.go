@@ -7,41 +7,70 @@ import (
 )
 
 func TestHealthHandler(t *testing.T) {
-	request := httptest.NewRequest("GET", "/health", nil)
-	recorder := httptest.NewRecorder()
-
-	healthHandler(recorder, request)
-
-	if recorder.Code != http.StatusOK {
-		t.Errorf("expected: %d, received: %d", http.StatusOK, recorder.Code)
+	tests := []struct {
+		name       string
+		method     string
+		wantStatus int
+		wantBody   string
+		wantAllow  string
+	}{
+		{
+			name:       "GET returns OK",
+			method:     "GET",
+			wantStatus: http.StatusOK,
+			wantBody:   "OK",
+			wantAllow:  "",
+		},
+		{
+			name:       "POST returns Not Allowed",
+			method:     "POST",
+			wantStatus: http.StatusMethodNotAllowed,
+			wantBody:   "405 Not Allowed",
+			wantAllow:  "GET",
+		},
+		{
+			name:       "PUT returns Not Allowed",
+			method:     "PUT",
+			wantStatus: http.StatusMethodNotAllowed,
+			wantBody:   "405 Not Allowed",
+			wantAllow:  "GET",
+		},
+		{
+			name:       "PATCH returns Not Allowed",
+			method:     "PATCH",
+			wantStatus: http.StatusMethodNotAllowed,
+			wantBody:   "405 Not Allowed",
+			wantAllow:  "GET",
+		},
+		{
+			name:       "DELETE returns Not Allowed",
+			method:     "DELETE",
+			wantStatus: http.StatusMethodNotAllowed,
+			wantBody:   "405 Not Allowed",
+			wantAllow:  "GET",
+		},
 	}
 
-	if recorder.Body.String() != "OK" {
-		t.Errorf("expected: %s, received: %s", "OK", recorder.Body.String())
-	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			request := httptest.NewRequest(tt.method, "/health", nil)
+			recorder := httptest.NewRecorder()
 
-	if recorder.Header().Get("Allow") != "" {
-		t.Errorf("expected empty Allow header, received: %s", recorder.Header().Get("Allow"))
-	}
+			healthHandler(recorder, request)
 
-}
+			if recorder.Code != tt.wantStatus {
+				t.Errorf("method: %s, expected: %d, received: %d", tt.method, tt.wantStatus, recorder.Code)
+			}
 
-func TestHealthHandlerMethodNotAllowed(t *testing.T) {
-	request := httptest.NewRequest("POST", "/health", nil)
-	recorder := httptest.NewRecorder()
+			if recorder.Body.String() != tt.wantBody {
+				t.Errorf("method: %s, expected: %s, received: %s", tt.method, tt.wantBody, recorder.Body.String())
+			}
 
-	healthHandler(recorder, request)
+			if recorder.Header().Get("Allow") != tt.wantAllow {
+				t.Errorf("method: %s, expected: %s, received: %s", tt.method, tt.wantAllow, recorder.Header().Get("Allow"))
+			}
+		})
 
-	if recorder.Code != http.StatusMethodNotAllowed {
-		t.Errorf("expected: %d, received: %d", http.StatusMethodNotAllowed, recorder.Code)
-	}
-
-	if recorder.Body.String() != "405 Not Allowed" {
-		t.Errorf("expected: %s, received: %s", "405 Not Allowed", recorder.Body.String())
-	}
-
-	if recorder.Header().Get("Allow") != "GET" {
-		t.Errorf("expected: %s, received: %s", "GET", recorder.Header().Get("Allow"))
 	}
 
 }
