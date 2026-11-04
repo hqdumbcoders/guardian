@@ -20,6 +20,10 @@ func TestHealthHandler(t *testing.T) {
 		t.Errorf("expected: %s, received: %s", "OK", recorder.Body.String())
 	}
 
+	if recorder.Header().Get("Allow") != "" {
+		t.Errorf("expected empty Allow header, received: %s", recorder.Header().Get("Allow"))
+	}
+
 }
 
 func TestHealthHandlerMethodNotAllowed(t *testing.T) {
