@@ -22,13 +22,17 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func newRouter() *http.ServeMux {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/health", healthHandler)
+	return mux
+}
+
 func main() {
 	fmt.Printf("starting: %s %s\n", appName, appVersion)
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/health", healthHandler)
-
-	err := http.ListenAndServe(":8080", mux)
+	router := newRouter()
+	err := http.ListenAndServe(":8080", router)
 	if err != nil {
 		log.Fatal(err)
 	}
