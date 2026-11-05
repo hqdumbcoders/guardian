@@ -51,12 +51,14 @@ func TestHealthHandler(t *testing.T) {
 		},
 	}
 
+	mux := newRouter()
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(tt.method, "/health", nil)
 			recorder := httptest.NewRecorder()
 
-			healthHandler(recorder, request)
+			mux.ServeHTTP(recorder, request)
 
 			if recorder.Code != tt.wantStatus {
 				t.Errorf("method: %s, expected: %d, received: %d", tt.method, tt.wantStatus, recorder.Code)
