@@ -89,3 +89,33 @@ func TestHealthHandler(t *testing.T) {
 	}
 
 }
+
+func TestNewServer(t *testing.T) {
+	serv := newServer()
+
+	request := httptest.NewRequest("GET", "/health", nil)
+	recorder := httptest.NewRecorder()
+
+	if serv.Handler == nil {
+		t.Fatal("expected Handler to be non-nil")
+	}
+
+	serv.Handler.ServeHTTP(recorder, request)
+
+	if serv.Addr != ":8080" {
+		t.Errorf("expected: %s, received: %s", ":8080", serv.Addr)
+	}
+
+	if recorder.Code != http.StatusOK {
+		t.Errorf("expected: %d, received: %d", http.StatusOK, recorder.Code)
+	}
+
+	request = httptest.NewRequest("GET", "/unknown", nil)
+	recorder = httptest.NewRecorder()
+	serv.Handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusNotFound {
+		t.Errorf("expected: %d, received: %d", http.StatusNotFound, recorder.Code)
+	}
+
+}
