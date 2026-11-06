@@ -28,11 +28,18 @@ func newRouter() *http.ServeMux {
 	return mux
 }
 
+func newServer() *http.Server {
+	return &http.Server{
+		Addr:    ":8080",
+		Handler: newRouter(),
+	}
+}
+
 func main() {
 	fmt.Printf("starting: %s %s\n", appName, appVersion)
 
-	router := newRouter()
-	err := http.ListenAndServe(":8080", router)
+	server := newServer()
+	err := server.ListenAndServe()
 	if err != nil {
 		log.Fatal(err)
 	}
