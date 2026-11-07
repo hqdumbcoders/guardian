@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"hqdumbcoders/guardian/internal/config"
 	"log"
 	"net/http"
 )
@@ -22,25 +23,29 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func newRouter() *http.ServeMux {
+func newRouter(_ config.Config) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", healthHandler)
 	return mux
 }
 
-func newServer() *http.Server {
+func newServer(cfg config.Config) *http.Server {
 	return &http.Server{
 		Addr:    ":8080",
-		Handler: newRouter(),
+		Handler: newRouter(cfg),
 	}
 }
 
 func main() {
 	fmt.Printf("starting: %s %s\n", appName, appVersion)
 
-	server := newServer()
-	err := server.ListenAndServe()
+	cfg, err := config.LoadConfig()
 	if err != nil {
+		log.Fatal(err)
+	}
+
+	server := newServer(cfg)
+	if err := server.ListenAndServe(); err != nil {
 		log.Fatal(err)
 	}
 }
