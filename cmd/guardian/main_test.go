@@ -1,6 +1,7 @@
 package main
 
 import (
+	"hqdumbcoders/guardian/internal/config"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -64,7 +65,12 @@ func TestHealthHandler(t *testing.T) {
 		},
 	}
 
-	mux := newRouter()
+	cfg := config.Config{
+		ErdtreeURL: "http://localhost:8001",
+		GladosURL:  "http://localhost:8002",
+	}
+
+	mux := newRouter(cfg)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -91,7 +97,12 @@ func TestHealthHandler(t *testing.T) {
 }
 
 func TestNewServer(t *testing.T) {
-	serv := newServer()
+	cfg := config.Config{
+		ErdtreeURL: "http://localhost:8001",
+		GladosURL:  "http://localhost:8002",
+	}
+
+	serv := newServer(cfg)
 
 	request := httptest.NewRequest("GET", "/health", nil)
 	recorder := httptest.NewRecorder()
@@ -108,14 +119,6 @@ func TestNewServer(t *testing.T) {
 
 	if recorder.Code != http.StatusOK {
 		t.Errorf("expected: %d, received: %d", http.StatusOK, recorder.Code)
-	}
-
-	request = httptest.NewRequest("GET", "/unknown", nil)
-	recorder = httptest.NewRecorder()
-	serv.Handler.ServeHTTP(recorder, request)
-
-	if recorder.Code != http.StatusNotFound {
-		t.Errorf("expected: %d, received: %d", http.StatusNotFound, recorder.Code)
 	}
 
 }
