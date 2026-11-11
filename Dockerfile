@@ -1,17 +1,17 @@
 FROM golang:1.27.2 AS builder
 
-WORKDIR /dev/guardian
+WORKDIR /app
 
 COPY go.mod ./
-
 COPY . .
-RUN go build -v -o ./app ./cmd/guardian
+
+RUN CGO_ENABLED=0 go build -v -o ./app ./cmd/guardian
 
 FROM alpine:3.23 AS runtime
 
 WORKDIR /app
 
-COPY --from=builder /dev/guardian/app ./app
+COPY --from=builder /app/app ./app
 
 CMD ["./app"]
 
