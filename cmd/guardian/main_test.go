@@ -113,7 +113,7 @@ func TestNewServer(t *testing.T) {
 
 	serv.Handler.ServeHTTP(recorder, request)
 
-	if serv.Addr != ":8080" {
+	if serv.Addr != ":8000" {
 		t.Errorf("expected: %s, received: %s", ":8080", serv.Addr)
 	}
 
