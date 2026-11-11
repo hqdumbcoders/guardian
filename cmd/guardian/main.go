@@ -31,7 +31,7 @@ func newRouter(_ config.Config) *http.ServeMux {
 
 func newServer(cfg config.Config) *http.Server {
 	return &http.Server{
-		Addr:    ":8080",
+		Addr:    ":8000",
 		Handler: newRouter(cfg),
 	}
 }
