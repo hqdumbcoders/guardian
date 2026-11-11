@@ -1,5 +1,12 @@
 services:
-  erdtree:
-    image: 
-
-  glados:
+  guardian:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: guardian
+    environment:
+      ERDTREE_URL: ${ERDTREE_URL}
+      GLADOS_URL: ${GLADOS_URL}
+    expose:
+      - "8000"
+  nginx:
