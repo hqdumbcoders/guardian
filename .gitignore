@@ -1,4 +1,5 @@
 _gitignore/
+.env
 *.log
 
 # artifacts from pprof tooling
