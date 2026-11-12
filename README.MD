@@ -4,20 +4,95 @@ Gateway service for the Slotty platform.
 
 ## Stack
 
-Go · Go modules
+Go · Go modules · Docker · Docker Compose · NGINX
 
 ## Development requirements
+
+- Docker Engine
+- Docker Compose plugin
+
+For local Go development
 
 - Go 1.27.2 or later (as declared in `go.mod`)
 - Make for the shortcut commands below
 
 ## Quick start
 
+Clone the repository and enter its directory:
+
+```sh
+git clone https://github.com/hqdumbcoders/guardian.git
+cd guardian
+```
+
+Create a local environment file from the example:
+
+```sh
+cp example.env .env
+```
+
+Start the application and NGINX:
+
+```sh
+docker compose up --build -d
+```
+
+Guardian will be available through NGINX on port `80`.
+
+Check application health:
+
+```sh
+curl -i -X GET http://localhost/health
+```
+
+A successful response returns `HTTP 200 OK`.
+
+Check container status:
+
+```sh
+docker compose ps
+```
+
+Guardian should have the `healthy` status.
+
+Stop the application:
+
+```sh
+docker compose down
+```
+
+To view application logs:
+
+```sh
+docker compose logs -f
+```
+
+## Configuration
+
+The application requires the following environment variables:
+
+Variable=Description 
+
+ERDTREE_URL=URL of the Erdtree Core service    
+GLADOS_URL=URL of the Glados Identity service 
+
+The `.env` file is used for local configuration 
+and must not be committed to the repository. 
+Use `example.env` as a template
+
+## Development 
+
+When running Guardian locally, load the 
+required environment variables from .env 
+before executing make run. Docker Compose 
+loads the variables from .env for container 
+configuration.
+
 Run from the repository root:
 
 ```sh
 make init  # Download dependencies declared in go.mod
-make run   # Run the current executable
+make run   # Run the Go application locally
 ```
 
 The module is already initialized; you do not need to run `go mod init` again.
@@ -30,7 +105,7 @@ go mod download
 go run ./cmd/guardian
 ```
 
-There is no HTTP address or endpoint to call yet.
+The application requires ERDTREE_URL and GLADOS_URL to be set when running locally
 
 ## Development commands
 
@@ -54,10 +129,17 @@ go mod tidy          # Reconcile dependencies with source imports
 
 Commit `go.mod` and, when generated, `go.sum` with dependency changes.
 
+## Project structure 
+
 ```text
-cmd/guardian/main.go  Executable entry point and startup
-internal/auth/       Authentication package placeholder
-internal/proxy/      Proxy package placeholder
+cmd/guardian/main.go       Executable entry point and startup
+internal/auth/             Authentication package placeholder
+internal/config/           Application configuration       
+internal/proxy/            Proxy package placeholder
+nginx/nginx.conf           NGINX configuration
+Dockerfile                 Multi-stage Docker build
+docker-compose.yml         Application and NGINX services
+example.env                Environment variables template
 ```
 
 The current module path is `hqdumbcoders/guardian`. Imports of packages in this
