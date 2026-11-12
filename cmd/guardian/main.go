@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	appName    = "Slotty"
+	appName    = "guardian"
 	appVersion = "0.1.0"
 )
 

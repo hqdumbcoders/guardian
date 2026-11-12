@@ -1,22 +1,23 @@
 services:
   guardian:
+    container_name: guardian
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    expose:
+      - "8000"
+    environment:
+      ERDTREE_URL: ${ERDTREE_URL}
+      GLADOS_URL: ${GLADOS_URL}
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:8000/health"]
       interval: 5s
       timeout: 3s
       retries: 5
       start_period: 5s
-    build: 
-      context: .
-      dockerfile: Dockerfile
-    container_name: guardian
-    environment:
-      ERDTREE_URL: ${ERDTREE_URL}
-      GLADOS_URL: ${GLADOS_URL}
-    expose:
-      - "8000"
+    
   nginx:
-    image: nginx:alpine
+    image: nginx:1.30.6-alpine
     container_name: nginx
     ports:
       - "80:80"
