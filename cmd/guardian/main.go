@@ -3,8 +3,10 @@ package main
 import (
 	"fmt"
 	"hqdumbcoders/guardian/internal/config"
+	"hqdumbcoders/guardian/internal/proxy"
 	"log"
 	"net/http"
+	"net/url"
 )
 
 const (
@@ -23,17 +25,55 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func newRouter(_ config.Config) *http.ServeMux {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/health", healthHandler)
-	return mux
+func parseUpstreamURL(rawURL string) (*url.URL, error) {
+	target, err := url.Parse(rawURL)
+	if err != nil {
+		return nil, fmt.Errorf("parse upstream URL: %w", err)
+	}
+
+	if target.Scheme != "http" && target.Scheme != "https" {
+		return nil, fmt.Errorf("expected: %s, received: %s", "http or https", target.Scheme)
+	}
+
+	if target.Host == "" {
+		return nil, fmt.Errorf("upstream URL: empty host")
+	}
+
+	return target, nil
 }
 
-func newServer(cfg config.Config) *http.Server {
+func newRouter(cfg config.Config) (*http.ServeMux, error) {
+	gladosURL, err := parseUpstreamURL(cfg.GladosURL)
+	if err != nil {
+		return nil, fmt.Errorf("glados URL: %w", err)
+	}
+
+	erdtreeURL, err := parseUpstreamURL(cfg.ErdtreeURL)
+	if err != nil {
+		return nil, fmt.Errorf("erdtree URL: %w", err)
+	}
+
+	gladosProxy := proxy.New(gladosURL)
+	erdtreeProxy := proxy.New(erdtreeURL)
+
+	mux := http.NewServeMux()
+
+	mux.Handle("POST /api/v1/auth/login", gladosProxy)
+	mux.Handle("GET /api/v1/products", erdtreeProxy)
+	mux.HandleFunc("/health", healthHandler)
+	return mux, nil
+}
+
+func newServer(cfg config.Config) (*http.Server, error) {
+	handler, err := newRouter(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("create router: %w", err)
+	}
+
 	return &http.Server{
 		Addr:    ":8000",
-		Handler: newRouter(cfg),
-	}
+		Handler: handler,
+	}, nil
 }
 
 func main() {
@@ -44,7 +84,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	server := newServer(cfg)
+	server, err := newServer(cfg)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	if err := server.ListenAndServe(); err != nil {
 		log.Fatal(err)
 	}
