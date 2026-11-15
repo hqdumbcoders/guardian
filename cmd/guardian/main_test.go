@@ -70,7 +70,10 @@ func TestHealthHandler(t *testing.T) {
 		GladosURL:  "http://localhost:8002",
 	}
 
-	mux := newRouter(cfg)
+	mux, err := newRouter(cfg)
+	if err != nil {
+		t.Fatalf("failed to create router: %v", err)
+	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -102,7 +105,10 @@ func TestNewServer(t *testing.T) {
 		GladosURL:  "http://localhost:8002",
 	}
 
-	serv := newServer(cfg)
+	serv, err := newServer(cfg)
+	if err != nil {
+		t.Fatalf("failed to create server: %v", err)
+	}
 
 	request := httptest.NewRequest("GET", "/health", nil)
 	recorder := httptest.NewRecorder()
