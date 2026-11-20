@@ -120,11 +120,43 @@ func TestNewServer(t *testing.T) {
 	serv.Handler.ServeHTTP(recorder, request)
 
 	if serv.Addr != ":8000" {
-		t.Errorf("expected: %s, received: %s", ":8080", serv.Addr)
+		t.Errorf("expected: %s, received: %s", ":8000", serv.Addr)
 	}
 
 	if recorder.Code != http.StatusOK {
 		t.Errorf("expected: %d, received: %d", http.StatusOK, recorder.Code)
+	}
+
+}
+
+func TestParseUpstreamURL(t *testing.T) {
+	tests := []struct {
+		name    string
+		rawURL  string
+		wantErr bool
+	}{
+		{"valid HTTP", "http://glados:8002", false},
+		{"valid HTTPS", "https://example.com", false},
+		{"invalid scheme", "ftp://glados:8002", true},
+		{"missing scheme", "glados:8002", true},
+		{"empty host", "http:///users", true},
+		{"malformed URL", "http://%zz", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			target, err := parseUpstreamURL(tt.rawURL)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("expected error: %t, got error: %t (%v)",
+					tt.wantErr, err != nil, err)
+			}
+
+			if !tt.wantErr && target == nil {
+				t.Error("expected non-nil URL, got nil")
+			}
+
+		})
 	}
 
 }
