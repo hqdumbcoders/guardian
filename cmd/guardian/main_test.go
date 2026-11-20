@@ -453,3 +453,47 @@ func TestNewRouterUpdateProduct(t *testing.T) {
 		})
 	}
 }
+
+func TestNewRouterListSlots(t *testing.T) {
+	erdtree := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Errorf("expected GET, got %s", r.Method)
+		}
+
+		if r.URL.Path != "/api/v1/slots" {
+			t.Errorf("expected /api/v1/slots, got %s", r.URL.Path)
+		}
+
+		if r.URL.RawQuery != "product_id=42" {
+			t.Errorf("expected product_id=42, got %s", r.URL.RawQuery)
+		}
+
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer erdtree.Close()
+
+	cfg := config.Config{
+		ErdtreeURL: erdtree.URL,
+		GladosURL:  "http://glados:8002",
+	}
+
+	router, err := newRouter(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	request := httptest.NewRequest(
+		http.MethodGet,
+		"/api/v1/slots?product_id=42",
+		nil,
+	)
+
+	recorder := httptest.NewRecorder()
+
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Errorf("expected: %d, received: %d", http.StatusOK, recorder.Code)
+	}
+
+}
