@@ -207,3 +207,83 @@ func TestNewRouterInvalidErdtreeURL(t *testing.T) {
 	}
 
 }
+
+func TestNewRouterGetProductByID(t *testing.T) {
+	erdtree := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Errorf("expected GET, got %s", r.Method)
+		}
+
+		if r.URL.Path != "/api/v1/products/42" {
+			t.Errorf("expected /api/v1/products/42, got %s", r.URL.Path)
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("erdtree response"))
+	}))
+	defer erdtree.Close()
+
+	cfg := config.Config{
+		ErdtreeURL: erdtree.URL,
+		GladosURL:  "http://glados:8002",
+	}
+
+	router, err := newRouter(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	request := httptest.NewRequest(
+		http.MethodGet,
+		"/api/v1/products/42",
+		nil,
+	)
+
+	recorder := httptest.NewRecorder()
+
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Errorf("expected: %d, received: %d", http.StatusOK, recorder.Code)
+	}
+
+	if recorder.Body.String() != "erdtree response" {
+		t.Errorf("expected: erdtree response, received: %s", recorder.Body.String())
+	}
+
+}
+
+func TestNewRouterProductRouteRejections(t *testing.T) {
+	tests := []struct {
+		method     string
+		path       string
+		wantStatus int
+	}{
+		{"POST", "/api/v1/products/42", http.StatusMethodNotAllowed},
+		{"GET", "/api/v1/products/42/details", http.StatusNotFound},
+	}
+
+	cfg := config.Config{
+		ErdtreeURL: "http://erdtree:8001",
+		GladosURL:  "http://glados:8002",
+	}
+
+	router, err := newRouter(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			request := httptest.NewRequest(tt.method, tt.path, nil)
+			recorder := httptest.NewRecorder()
+
+			router.ServeHTTP(recorder, request)
+
+			if recorder.Code != tt.wantStatus {
+				t.Errorf("method: %s, expected: %d, received: %d", tt.method, tt.wantStatus, recorder.Code)
+			}
+
+		})
+	}
+}
