@@ -4,6 +4,7 @@ import (
 	"hqdumbcoders/guardian/internal/config"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -161,6 +162,48 @@ func TestParseUpstreamURL(t *testing.T) {
 			}
 
 		})
+	}
+
+}
+
+func TestNewRouterInvalidGladosURL(t *testing.T) {
+	cfg := config.Config{
+		ErdtreeURL: "http://erdtree:8001",
+		GladosURL:  "ftp://glados:8002",
+	}
+
+	router, err := newRouter(cfg)
+	if err == nil {
+		t.Fatal("expected non-nil error, got nil")
+	}
+
+	if router != nil {
+		t.Fatalf("expected nil router, got %v", router)
+	}
+
+	if !strings.Contains(err.Error(), "glados URL:") {
+		t.Errorf("expected: %s, received: %q", "glados URL: ...", err.Error())
+	}
+
+}
+
+func TestNewRouterInvalidErdtreeURL(t *testing.T) {
+	cfg := config.Config{
+		ErdtreeURL: "ftp://erdtree:8001",
+		GladosURL:  "http://glados:8002",
+	}
+
+	router, err := newRouter(cfg)
+	if err == nil {
+		t.Fatal("expected non-nil error, got nil")
+	}
+
+	if router != nil {
+		t.Fatalf("expected nil router, got %v", router)
+	}
+
+	if !strings.Contains(err.Error(), "erdtree URL:") {
+		t.Errorf("expected: %s, received: %q", "erdtree URL: ...", err.Error())
 	}
 
 }
