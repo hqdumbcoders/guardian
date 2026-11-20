@@ -343,3 +343,47 @@ func TestNewRouterCreateProduct(t *testing.T) {
 	}
 
 }
+
+func TestNewRouterDeleteProduct(t *testing.T) {
+	erdtree := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodDelete {
+			t.Errorf("expected DELETE, got %s", r.Method)
+		}
+
+		if r.URL.Path != "/api/v1/products/42" {
+			t.Errorf("expected /api/v1/products/42, got %s", r.URL.Path)
+		}
+
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer erdtree.Close()
+
+	cfg := config.Config{
+		ErdtreeURL: erdtree.URL,
+		GladosURL:  "http://glados:8002",
+	}
+
+	router, err := newRouter(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	request := httptest.NewRequest(
+		http.MethodDelete,
+		"/api/v1/products/42",
+		nil,
+	)
+
+	recorder := httptest.NewRecorder()
+
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusNoContent {
+		t.Errorf("expected: %d, received: %d", http.StatusNoContent, recorder.Code)
+	}
+
+	if recorder.Body.String() != "" {
+		t.Errorf("expected: empty body, received: %s", recorder.Body.String())
+	}
+
+}
