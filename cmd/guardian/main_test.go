@@ -540,7 +540,52 @@ func TestNewRouterGetSlotByID(t *testing.T) {
 
 	if recorder.Result().Header.Get("Content-Type") != "application/json" {
 		t.Errorf("expected application/json, got %s", recorder.Result().Header.Get("Content-Type"))
+	}
 
+}
+
+func TestNewRouterCreateSlotsUpstreamError(t *testing.T) {
+	erdtree := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Errorf("expected POST, got %s", r.Method)
+		}
+
+		if r.URL.Path != "/api/v1/slots" {
+			t.Errorf("expected /api/v1/slots, got %s", r.URL.Path)
+		}
+
+		w.Header().Set("Content-Type", "text/plain")
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("invalid slot data"))
+	}))
+	defer erdtree.Close()
+
+	cfg := config.Config{
+		ErdtreeURL: erdtree.URL,
+		GladosURL:  "http://glados:8002",
+	}
+
+	router, err := newRouter(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/slots",
+		strings.NewReader("{}"),
+	)
+	request.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Errorf("expected: %d, received: %d", http.StatusBadRequest, recorder.Code)
+	}
+
+	if recorder.Body.String() != "invalid slot data" {
+		t.Errorf("expected: invalid slot data, received: %s", recorder.Body.String())
 	}
 
 }
