@@ -387,3 +387,69 @@ func TestNewRouterDeleteProduct(t *testing.T) {
 	}
 
 }
+
+func TestNewRouterUpdateProduct(t *testing.T) {
+	tests := []struct {
+		method string
+		body   string
+	}{
+		{"PUT", `{"name":"Deep Tissue Massage"}`},
+		{"PATCH", `{"name":"Relaxing Massage"}`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.method, func(t *testing.T) {
+			erdtree := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method != tt.method {
+					t.Errorf("expected %s, got %s", tt.method, r.Method)
+				}
+
+				if r.URL.Path != "/api/v1/products/42" {
+					t.Errorf("expected /api/v1/products/42, got %s", r.URL.Path)
+				}
+
+				if r.Header.Get("Content-Type") != "application/json" {
+					t.Errorf("expected application/json, got %s", r.Header.Get("Content-Type"))
+				}
+
+				body, err := io.ReadAll(r.Body)
+				if err != nil {
+					t.Error(err)
+					return
+				}
+
+				if string(body) != tt.body {
+					t.Errorf("expected %s, got %s", tt.body, string(body))
+				}
+
+				w.WriteHeader(http.StatusOK)
+			}))
+			defer erdtree.Close()
+
+			cfg := config.Config{
+				ErdtreeURL: erdtree.URL,
+				GladosURL:  "http://glados:8002",
+			}
+
+			router, err := newRouter(cfg)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			request := httptest.NewRequest(
+				tt.method,
+				"/api/v1/products/42",
+				strings.NewReader(tt.body),
+			)
+			request.Header.Set("Content-Type", "application/json")
+			recorder := httptest.NewRecorder()
+
+			router.ServeHTTP(recorder, request)
+
+			if recorder.Code != http.StatusOK {
+				t.Errorf("method: %s, expected: %d, received: %d", tt.method, http.StatusOK, recorder.Code)
+			}
+
+		})
+	}
+}
