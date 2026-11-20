@@ -62,6 +62,7 @@ func newRouter(cfg config.Config) (*http.ServeMux, error) {
 	mux.Handle("POST /api/v1/products", erdtreeProxy)
 	mux.Handle("GET /api/v1/products", erdtreeProxy)
 	mux.Handle("GET /api/v1/products/{id}", erdtreeProxy)
+	mux.Handle("DELETE /api/v1/products/{id}", erdtreeProxy)
 	mux.HandleFunc("/health", healthHandler)
 	return mux, nil
 }
