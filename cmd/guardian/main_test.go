@@ -2,6 +2,7 @@ package main
 
 import (
 	"hqdumbcoders/guardian/internal/config"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -286,4 +287,59 @@ func TestNewRouterProductRouteRejections(t *testing.T) {
 
 		})
 	}
+}
+
+func TestNewRouterCreateProduct(t *testing.T) {
+	erdtree := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Errorf("expected POST, got %s", r.Method)
+		}
+
+		if r.URL.Path != "/api/v1/products" {
+			t.Errorf("expected /api/v1/products, got %s", r.URL.Path)
+		}
+
+		if r.Header.Get("Content-Type") != "application/json" {
+			t.Errorf("expected application/json, got %s", r.Header.Get("Content-Type"))
+		}
+
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+
+		if string(body) != `{"name":"Massage"}` {
+			t.Errorf("expected %s, got %s", `{"name":"Massage"}`, string(body))
+		}
+
+		w.WriteHeader(http.StatusCreated)
+	}))
+	defer erdtree.Close()
+
+	cfg := config.Config{
+		ErdtreeURL: erdtree.URL,
+		GladosURL:  "http://glados:8002",
+	}
+
+	router, err := newRouter(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/products",
+		strings.NewReader(`{"name":"Massage"}`),
+	)
+	request.Header.Set("Content-Type", "application/json")
+
+	recorder := httptest.NewRecorder()
+
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusCreated {
+		t.Errorf("expected: %d, received: %d", http.StatusCreated, recorder.Code)
+	}
+
 }
