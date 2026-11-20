@@ -153,7 +153,11 @@ func TestParseUpstreamURL(t *testing.T) {
 			}
 
 			if !tt.wantErr && target == nil {
-				t.Error("expected non-nil URL, got nil")
+				t.Fatal("expected non-nil URL, got nil")
+			}
+
+			if !tt.wantErr && target.String() != tt.rawURL {
+				t.Errorf("expected: %q, received: %q", tt.rawURL, target.String())
 			}
 
 		})
