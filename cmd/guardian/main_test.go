@@ -497,3 +497,50 @@ func TestNewRouterListSlots(t *testing.T) {
 	}
 
 }
+
+func TestNewRouterGetSlotByID(t *testing.T) {
+	erdtree := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Errorf("expected GET, got %s", r.Method)
+		}
+
+		if r.URL.Path != "/api/v1/slots/42" {
+			t.Errorf("expected /api/v1/slots/42, got %s", r.URL.Path)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"id":42}`))
+	}))
+	defer erdtree.Close()
+
+	cfg := config.Config{
+		ErdtreeURL: erdtree.URL,
+		GladosURL:  "http://glados:8002",
+	}
+
+	router, err := newRouter(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	request := httptest.NewRequest(
+		http.MethodGet,
+		"/api/v1/slots/42",
+		nil,
+	)
+
+	recorder := httptest.NewRecorder()
+
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Errorf("expected: %d, received: %d", http.StatusOK, recorder.Code)
+	}
+
+	if recorder.Result().Header.Get("Content-Type") != "application/json" {
+		t.Errorf("expected application/json, got %s", recorder.Result().Header.Get("Content-Type"))
+
+	}
+
+}
