@@ -702,3 +702,63 @@ func TestNewRouterBookingRoutes(t *testing.T) {
 		})
 	}
 }
+
+func TestNewRouterGladosPostRoutes(t *testing.T) {
+	tests := []struct {
+		name       string
+		method     string
+		path       string
+		wantStatus int
+	}{
+		{"login", "POST", "/api/v1/auth/login", http.StatusOK},
+		{"register", "POST", "/api/v1/users", http.StatusCreated},
+		{"refresh", "POST", "/api/v1/auth/refresh", http.StatusOK},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			glados := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method != tt.method {
+					t.Errorf("expected %s, got %s", tt.method, r.Method)
+				}
+
+				if r.URL.Path != tt.path {
+					t.Errorf("expected %s, got %s", tt.path, r.URL.Path)
+				}
+
+				w.Header().Set("X-Test-Upstream", "glados")
+				w.WriteHeader(tt.wantStatus)
+			}))
+			defer glados.Close()
+
+			cfg := config.Config{
+				ErdtreeURL: "http://erdtree:8001",
+				GladosURL:  glados.URL,
+			}
+
+			router, err := newRouter(cfg)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			request := httptest.NewRequest(
+				tt.method,
+				tt.path,
+				nil,
+			)
+
+			recorder := httptest.NewRecorder()
+
+			router.ServeHTTP(recorder, request)
+
+			if recorder.Code != tt.wantStatus {
+				t.Errorf("name: %s, expected: %d, received: %d", tt.name, tt.wantStatus, recorder.Code)
+			}
+
+			if recorder.Result().Header.Get("X-Test-Upstream") != "glados" {
+				t.Errorf("expected X-Test-Upstream: glados, got %s", recorder.Result().Header.Get("X-Test-Upstream"))
+			}
+
+		})
+	}
+}

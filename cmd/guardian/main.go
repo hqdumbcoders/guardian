@@ -58,7 +58,9 @@ func newRouter(cfg config.Config) (*http.ServeMux, error) {
 
 	mux := http.NewServeMux()
 
+	mux.Handle("POST /api/v1/users", gladosProxy)
 	mux.Handle("POST /api/v1/auth/login", gladosProxy)
+	mux.Handle("POST /api/v1/auth/refresh", gladosProxy)
 
 	mux.Handle("POST /api/v1/products", erdtreeProxy)
 	mux.Handle("GET /api/v1/products", erdtreeProxy)
