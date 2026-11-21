@@ -710,8 +710,9 @@ func TestNewRouterGladosPostRoutes(t *testing.T) {
 		path       string
 		wantStatus int
 	}{
-		{"login", "POST", "/api/v1/auth/login", http.StatusOK},
 		{"register", "POST", "/api/v1/users", http.StatusCreated},
+		{"login", "POST", "/api/v1/auth/login", http.StatusOK},
+		{"logout", "POST", "/api/v1/auth/logout", http.StatusNoContent},
 		{"refresh", "POST", "/api/v1/auth/refresh", http.StatusOK},
 	}
 
