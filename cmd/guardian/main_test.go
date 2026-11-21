@@ -823,39 +823,3 @@ func TestNewRouterGladosUserRoutes(t *testing.T) {
 		})
 	}
 }
-
-func TestWithCorrelationID(t *testing.T) {
-	tests := []string{}
-	handler := withCorrelationID(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		id, ok := r.Context().Value(correlationIDKey).(string)
-		if !ok || id == "" {
-			t.Fatal("expected not empty correlationIDKey")
-		}
-
-		tests = append(tests, id)
-	}))
-
-	request := httptest.NewRequest(
-		"GET",
-		"/api/v1/products",
-		nil,
-	)
-	recorder := httptest.NewRecorder()
-	handler.ServeHTTP(recorder, request)
-
-	request = httptest.NewRequest(
-		"POST",
-		"/api/v1/products",
-		nil,
-	)
-	recorder = httptest.NewRecorder()
-	handler.ServeHTTP(recorder, request)
-
-	if len(tests) != 2 {
-		t.Fatal("expected 2 requests")
-	}
-
-	if tests[0] == tests[1] {
-		t.Fatal("two requests received the same ID")
-	}
-}

@@ -1,22 +1,18 @@
 package main
 
 import (
-	"context"
-	"crypto/rand"
 	"fmt"
 	"hqdumbcoders/guardian/internal/config"
 	"hqdumbcoders/guardian/internal/proxy"
+	"hqdumbcoders/guardian/internal/requestid"
 	"log"
 	"net/http"
 	"net/url"
 )
 
-type correlationKey string
-
 const (
-	appName                         = "guardian"
-	appVersion                      = "0.1.0"
-	correlationIDKey correlationKey = "CorrelationID"
+	appName    = "guardian"
+	appVersion = "0.1.0"
 )
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
@@ -92,14 +88,6 @@ func newRouter(cfg config.Config) (*http.ServeMux, error) {
 	return mux, nil
 }
 
-func withCorrelationID(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		corID := rand.Text()
-		ctx := context.WithValue(r.Context(), correlationIDKey, corID)
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
-}
-
 func newServer(cfg config.Config) (*http.Server, error) {
 	handler, err := newRouter(cfg)
 	if err != nil {
@@ -108,7 +96,7 @@ func newServer(cfg config.Config) (*http.Server, error) {
 
 	return &http.Server{
 		Addr:    ":8000",
-		Handler: withCorrelationID(handler),
+		Handler: requestid.Middleware(handler),
 	}, nil
 }
 
