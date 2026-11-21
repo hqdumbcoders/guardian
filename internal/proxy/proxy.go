@@ -3,6 +3,7 @@ package proxy
 import (
 	"context"
 	"errors"
+	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -18,10 +19,12 @@ func New(target *url.URL) http.Handler {
 
 	reverseProxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
 		if errors.Is(err, context.DeadlineExceeded) {
+			log.Printf("status: %d upstream timeout", http.StatusGatewayTimeout)
 			w.WriteHeader(http.StatusGatewayTimeout)
 			return
 		}
 
+		log.Printf("status: %d upstream request failed", http.StatusBadGateway)
 		w.WriteHeader(http.StatusBadGateway)
 	}
 
