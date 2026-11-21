@@ -40,5 +40,16 @@ func New(target *url.URL) http.Handler {
 		w.WriteHeader(http.StatusBadGateway)
 	}
 
+	reverseProxy.ModifyResponse = func(res *http.Response) error {
+		id, ok := requestid.FromContext(res.Request.Context())
+		if !ok || id == "" {
+			log.Printf("status: %d", res.StatusCode)
+		} else {
+			log.Printf("correlation_id=%s, status: %d", id, res.StatusCode)
+		}
+
+		return nil
+	}
+
 	return reverseProxy
 }
