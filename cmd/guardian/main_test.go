@@ -589,3 +589,56 @@ func TestNewRouterCreateSlotsUpstreamError(t *testing.T) {
 	}
 
 }
+
+func TestNewRouterSlotByIDMutations(t *testing.T) {
+	tests := []string{
+		"PATCH",
+		"DELETE",
+	}
+
+	for _, tt := range tests {
+		t.Run(tt, func(t *testing.T) {
+			erdtree := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method != tt {
+					t.Errorf("expected %s, got %s", tt, r.Method)
+				}
+
+				if r.URL.Path != "/api/v1/slots/42" {
+					t.Errorf("expected /api/v1/slots/42, got %s", r.URL.Path)
+				}
+				w.Header().Set("X-Test-Upstream", "erdtree")
+				w.WriteHeader(http.StatusNoContent)
+			}))
+			defer erdtree.Close()
+
+			cfg := config.Config{
+				ErdtreeURL: erdtree.URL,
+				GladosURL:  "http://glados:8002",
+			}
+
+			router, err := newRouter(cfg)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			request := httptest.NewRequest(
+				tt,
+				"/api/v1/slots/42",
+				nil,
+			)
+
+			recorder := httptest.NewRecorder()
+
+			router.ServeHTTP(recorder, request)
+
+			if recorder.Code != http.StatusNoContent {
+				t.Errorf("method: %s, expected: %d, received: %d", tt, http.StatusNoContent, recorder.Code)
+			}
+
+			if recorder.Result().Header.Get("X-Test-Upstream") != "erdtree" {
+				t.Errorf("expected X-Test-Upstream: erdtree, got %s", recorder.Result().Header.Get("X-Test-Upstream"))
+			}
+
+		})
+	}
+}
