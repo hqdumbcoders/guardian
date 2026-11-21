@@ -73,6 +73,10 @@ func newRouter(cfg config.Config) (*http.ServeMux, error) {
 	mux.Handle("PATCH /api/v1/slots/{slot_id}", erdtreeProxy)
 	mux.Handle("DELETE /api/v1/slots/{slot_id}", erdtreeProxy)
 
+	mux.Handle("POST /api/v1/bookings", erdtreeProxy)
+	mux.Handle("GET /api/v1/bookings/{id}", erdtreeProxy)
+	mux.Handle("DELETE /api/v1/bookings/{id}", erdtreeProxy)
+
 	mux.HandleFunc("/health", healthHandler)
 	return mux, nil
 }

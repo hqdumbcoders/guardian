@@ -606,6 +606,7 @@ func TestNewRouterSlotByIDMutations(t *testing.T) {
 				if r.URL.Path != "/api/v1/slots/42" {
 					t.Errorf("expected /api/v1/slots/42, got %s", r.URL.Path)
 				}
+
 				w.Header().Set("X-Test-Upstream", "erdtree")
 				w.WriteHeader(http.StatusNoContent)
 			}))
@@ -633,6 +634,65 @@ func TestNewRouterSlotByIDMutations(t *testing.T) {
 
 			if recorder.Code != http.StatusNoContent {
 				t.Errorf("method: %s, expected: %d, received: %d", tt, http.StatusNoContent, recorder.Code)
+			}
+
+			if recorder.Result().Header.Get("X-Test-Upstream") != "erdtree" {
+				t.Errorf("expected X-Test-Upstream: erdtree, got %s", recorder.Result().Header.Get("X-Test-Upstream"))
+			}
+
+		})
+	}
+}
+
+func TestNewRouterBookingRoutes(t *testing.T) {
+	tests := []struct {
+		method     string
+		path       string
+		wantStatus int
+	}{
+		{"POST", "/api/v1/bookings", http.StatusCreated},
+		{"GET", "/api/v1/bookings/42", http.StatusOK},
+		{"DELETE", "/api/v1/bookings/42", http.StatusNoContent},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.method, func(t *testing.T) {
+			erdtree := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method != tt.method {
+					t.Errorf("expected %s, got %s", tt.method, r.Method)
+				}
+
+				if r.URL.Path != tt.path {
+					t.Errorf("expected %s, got %s", tt.path, r.URL.Path)
+				}
+
+				w.Header().Set("X-Test-Upstream", "erdtree")
+				w.WriteHeader(tt.wantStatus)
+			}))
+			defer erdtree.Close()
+
+			cfg := config.Config{
+				ErdtreeURL: erdtree.URL,
+				GladosURL:  "http://glados:8002",
+			}
+
+			router, err := newRouter(cfg)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			request := httptest.NewRequest(
+				tt.method,
+				tt.path,
+				nil,
+			)
+
+			recorder := httptest.NewRecorder()
+
+			router.ServeHTTP(recorder, request)
+
+			if recorder.Code != tt.wantStatus {
+				t.Errorf("method: %s, expected: %d, received: %d", tt.method, tt.wantStatus, recorder.Code)
 			}
 
 			if recorder.Result().Header.Get("X-Test-Upstream") != "erdtree" {
