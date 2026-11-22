@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 )
 
@@ -980,6 +981,71 @@ func TestNewRouterForwardsLoginBodyWithoutLoggingPassword(t *testing.T) {
 
 	if recorder.Code != http.StatusOK {
 		t.Errorf("expected: %d, received: %d", http.StatusOK, recorder.Code)
+	}
+
+}
+
+func TestNewRouterDoesNotRetryBookingCreation(t *testing.T) {
+	var countPostReq atomic.Int32
+	erdtree := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		if r.Header.Get("Content-Type") != "application/json" {
+			t.Errorf("expected application/json, got %s", r.Header.Get("Content-Type"))
+		}
+
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+
+		if string(body) != `{"slot_id":42}` {
+			t.Errorf("expected %s, got %s", `{"slot_id":42}`, string(body))
+		}
+
+		countPostReq.Add(1)
+		hijacker, ok := w.(http.Hijacker)
+		if !ok {
+			t.Errorf("ERDTREE response writer %T does not implement http.Hijacker", w)
+			return
+		}
+
+		conn, _, err := hijacker.Hijack()
+		if err != nil {
+			t.Errorf("hijack ERDTREE connection: %v", err)
+			return
+		}
+		conn.Close()
+
+	}))
+	defer erdtree.Close()
+
+	cfg := config.Config{
+		ErdtreeURL: erdtree.URL,
+		GladosURL:  "http://glados:8002",
+	}
+
+	router, err := newRouter(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/bookings",
+		strings.NewReader(`{"slot_id":42}`),
+	)
+	request.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusBadGateway {
+		t.Errorf("expected: %d, received: %d", http.StatusBadGateway, recorder.Code)
+	}
+
+	if countPostReq.Load() != 1 {
+		t.Errorf("ERDTREE received %d POST requests, want 1", countPostReq.Load())
 	}
 
 }
