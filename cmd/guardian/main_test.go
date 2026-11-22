@@ -845,3 +845,67 @@ func TestNewRouterGladosUserRoutes(t *testing.T) {
 		})
 	}
 }
+
+func TestNewRouterForwardsAuthorization(t *testing.T) {
+	var (
+		logBuffer bytes.Buffer
+		found     bool
+	)
+
+	glados := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		if r.Header.Get("Authorization") != "Bearer test-header-secret" {
+			t.Errorf("expected Bearer test-header-secret, got %s", r.Header.Get("Authorization"))
+		}
+
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer glados.Close()
+
+	cfg := config.Config{
+		ErdtreeURL: "http://erdtree:8001",
+		GladosURL:  glados.URL,
+	}
+
+	router, err := newRouter(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	request := httptest.NewRequest(
+		"GET",
+		"/api/v1/users/42",
+		nil,
+	)
+
+	recorder := httptest.NewRecorder()
+	request.Header.Set("Authorization", "Bearer test-header-secret")
+
+	loger := log.Writer()
+	log.SetOutput(&logBuffer)
+	t.Cleanup(func() { log.SetOutput(loger) })
+
+	router.ServeHTTP(recorder, request)
+
+	lines := strings.Split(logBuffer.String(), "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "upstream=glados") && strings.Contains(line, "status=200") &&
+			strings.Contains(line, "method=GET") && strings.Contains(line, "path=/api/v1/users/42") {
+			found = true
+			break
+		}
+	}
+
+	if strings.Contains(logBuffer.String(), "test-header-secret") {
+		t.Errorf("Authorization token leaked into Guardian logs")
+	}
+
+	if !found {
+		t.Errorf("missing log entry for GET /api/v1/users/42 (upstream=glados, status=200)")
+	}
+
+	if recorder.Code != http.StatusOK {
+		t.Errorf("expected: %d, received: %d", http.StatusOK, recorder.Code)
+	}
+
+}
