@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"hqdumbcoders/guardian/internal/config"
 	"io"
 	"log"
@@ -134,54 +135,78 @@ func TestNewServer(t *testing.T) {
 
 }
 
-func TestNewServerLogsUnknownRouteWithCorrelationID(t *testing.T) {
-	var (
-		logBuffer bytes.Buffer
-		found     bool
-	)
-
-	cfg := config.Config{
-		ErdtreeURL: "http://localhost:8001",
-		GladosURL:  "http://localhost:8002",
+func TestNewServerLogsRoutingErrorsWithCorrelationID(t *testing.T) {
+	tests := []struct {
+		name       string
+		method     string
+		path       string
+		wantStatus int
+	}{
+		{"unknown route", http.MethodGet, "/api/v1/unknown", http.StatusNotFound},
+		{"method not allowed", http.MethodPost, "/api/v1/products/42", http.StatusMethodNotAllowed},
 	}
 
-	serv, err := newServer(cfg)
-	if err != nil {
-		t.Fatalf("failed to create server: %v", err)
-	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var (
+				logBuffer bytes.Buffer
+				found     bool
+			)
 
-	request := httptest.NewRequest("GET", "/api/v1/unknown", nil)
-	recorder := httptest.NewRecorder()
+			cfg := config.Config{
+				ErdtreeURL: "http://localhost:8001",
+				GladosURL:  "http://localhost:8002",
+			}
 
-	if serv.Handler == nil {
-		t.Fatal("expected Handler to be non-nil")
-	}
+			serv, err := newServer(cfg)
+			if err != nil {
+				t.Fatalf("failed to create server: %v", err)
+			}
 
-	loger := log.Writer()
-	log.SetOutput(&logBuffer)
-	t.Cleanup(func() { log.SetOutput(loger) })
+			request := httptest.NewRequest(
+				tt.method,
+				tt.path,
+				nil,
+			)
+			recorder := httptest.NewRecorder()
 
-	serv.Handler.ServeHTTP(recorder, request)
+			if serv.Handler == nil {
+				t.Fatal("expected Handler to be non-nil")
+			}
 
-	lines := strings.Split(logBuffer.String(), "\n")
-	for _, line := range lines {
-		_, tail, ok := strings.Cut(line, "correlation_id=")
-		id, _, _ := strings.Cut(tail, ",")
-		hasCorrelationID := ok && strings.TrimSpace(id) != ""
+			loger := log.Writer()
+			log.SetOutput(&logBuffer)
+			t.Cleanup(func() { log.SetOutput(loger) })
 
-		if hasCorrelationID && strings.Contains(line, "status=404") &&
-			strings.Contains(line, "method=GET") && strings.Contains(line, "path=/api/v1/unknown") {
-			found = true
-			break
-		}
-	}
+			serv.Handler.ServeHTTP(recorder, request)
 
-	if !found {
-		t.Errorf("missing log entry for GET /api/v1/unknown with status=404 and a non-empty correlation_id")
-	}
+			status := fmt.Sprint("status=", tt.wantStatus)
+			method := "method=" + tt.method
+			path := "path=" + tt.path
 
-	if recorder.Code != http.StatusNotFound {
-		t.Errorf("expected: %d, received: %d", http.StatusNotFound, recorder.Code)
+			lines := strings.Split(logBuffer.String(), "\n")
+			for _, line := range lines {
+
+				_, tail, ok := strings.Cut(line, "correlation_id=")
+				id, _, _ := strings.Cut(tail, ",")
+				hasCorrelationID := ok && strings.TrimSpace(id) != ""
+
+				if hasCorrelationID && strings.Contains(line, status) &&
+					strings.Contains(line, method) && strings.Contains(line, path) {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				t.Errorf("missing log entry for %s %s with %d "+
+					"and a non-empty correlation_id", tt.method, tt.path, tt.wantStatus)
+			}
+
+			if recorder.Code != tt.wantStatus {
+				t.Errorf("expected: %d, received: %d", tt.wantStatus, recorder.Code)
+			}
+		})
 	}
 
 }
