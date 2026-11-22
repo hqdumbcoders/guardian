@@ -18,6 +18,7 @@ func TestReverseProxyUnavailableUpstream(t *testing.T) {
 	var (
 		tests     string
 		logBuffer bytes.Buffer
+		found     bool
 	)
 
 	server := httptest.NewServer(http.NotFoundHandler())
@@ -28,7 +29,7 @@ func TestReverseProxyUnavailableUpstream(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	proxy := New(target)
+	proxy := New(target, "erdtree")
 
 	handler := requestid.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		id, ok := requestid.FromContext(r.Context())
@@ -51,8 +52,19 @@ func TestReverseProxyUnavailableUpstream(t *testing.T) {
 
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, request)
-	if !strings.Contains(logBuffer.String(), tests) {
-		t.Errorf("expected: %v, received: %v", tests, logBuffer.String())
+	lines := strings.Split(logBuffer.String(), "\n")
+	for _, line := range lines {
+		if strings.Contains(line, tests) && strings.Contains(line, "status=502") &&
+			strings.Contains(line, "method=GET") && strings.Contains(line, "path=/api/v1/products") &&
+			strings.Contains(line, "upstream=erdtree") {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		t.Errorf("expected one log line with correlation_id=%s status=502 method=GET "+
+			"path=/api/v1/products upstream=erdtree\nlog: %q", tests, logBuffer.String())
 	}
 
 	if recorder.Code != http.StatusBadGateway {
@@ -73,7 +85,7 @@ func TestReverseProxyUnavailableUpstreamWithoutCorrelationID(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	proxy := New(target)
+	proxy := New(target, "erdtree")
 
 	request := httptest.NewRequest(
 		http.MethodPost,
@@ -94,6 +106,7 @@ func TestReverseProxyUpstreamTimeout(t *testing.T) {
 	var (
 		tests     string
 		logBuffer bytes.Buffer
+		found     bool
 	)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -107,7 +120,7 @@ func TestReverseProxyUpstreamTimeout(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	proxy := New(target)
+	proxy := New(target, "erdtree")
 
 	handler := requestid.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		id, ok := requestid.FromContext(r.Context())
@@ -135,8 +148,19 @@ func TestReverseProxyUpstreamTimeout(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, request)
 
-	if !strings.Contains(logBuffer.String(), tests) {
-		t.Errorf("expected: %v, received: %v", tests, logBuffer.String())
+	lines := strings.Split(logBuffer.String(), "\n")
+	for _, line := range lines {
+		if strings.Contains(line, tests) && strings.Contains(line, "status=504") &&
+			strings.Contains(line, "method=POST") && strings.Contains(line, "path=/api/v1/products") &&
+			strings.Contains(line, "upstream=erdtree") {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		t.Errorf("expected one log line with correlation_id=%s status=504 method=POST "+
+			"path=/api/v1/products upstream=erdtree\nlog: %q", tests, logBuffer.String())
 	}
 
 	if recorder.Code != http.StatusGatewayTimeout {
@@ -156,7 +180,7 @@ func TestReverseProxyResponseHeaderTimeout(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	proxy := New(target)
+	proxy := New(target, "erdtree")
 
 	request := httptest.NewRequest(
 		http.MethodPost,

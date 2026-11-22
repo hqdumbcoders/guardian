@@ -47,7 +47,7 @@ func TestReverseProxy(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	proxy := New(target)
+	proxy := New(target, "erdtree")
 
 	request := httptest.NewRequest(
 		http.MethodPost,
@@ -83,7 +83,7 @@ func TestReverseProxyLogsUpstreamResponse(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	proxy := New(target)
+	proxy := New(target, "erdtree")
 
 	handler := requestid.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		id, ok := requestid.FromContext(r.Context())
@@ -100,7 +100,7 @@ func TestReverseProxyLogsUpstreamResponse(t *testing.T) {
 
 	request := httptest.NewRequest(
 		http.MethodGet,
-		"/api/v1/products",
+		"/api/v1/products?token=test-secret",
 		nil,
 	)
 
@@ -117,14 +117,19 @@ func TestReverseProxyLogsUpstreamResponse(t *testing.T) {
 
 	lines := strings.Split(logBuffer.String(), "\n")
 	for _, line := range lines {
-		if strings.Contains(line, tests) && strings.Contains(line, "status: 200") {
+		if strings.Contains(line, tests) && strings.Contains(line, "status=200") &&
+			strings.Contains(line, "method=GET") && strings.Contains(line, "path=/api/v1/products") {
 			found = true
 			break
 		}
 	}
 
+	if strings.Contains(logBuffer.String(), "test-secret") {
+		t.Errorf("query token leaked into proxy log")
+	}
+
 	if !found {
-		t.Errorf("expected ID: %v,expected status: %s, received: %v", tests, "status: 200", lines)
+		t.Errorf("expected ID: %v, expected status: %s, received: %v", tests, "status=200", lines)
 	}
 
 }

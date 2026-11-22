@@ -54,8 +54,8 @@ func newRouter(cfg config.Config) (*http.ServeMux, error) {
 		return nil, fmt.Errorf("erdtree URL: %w", err)
 	}
 
-	gladosProxy := proxy.New(gladosURL)
-	erdtreeProxy := proxy.New(erdtreeURL)
+	gladosProxy := proxy.New(gladosURL, "glados")
+	erdtreeProxy := proxy.New(erdtreeURL, "erdtree")
 
 	mux := http.NewServeMux()
 

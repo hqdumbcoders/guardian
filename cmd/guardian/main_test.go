@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"hqdumbcoders/guardian/internal/config"
 	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -210,6 +212,11 @@ func TestNewRouterInvalidErdtreeURL(t *testing.T) {
 }
 
 func TestNewRouterGetProductByID(t *testing.T) {
+	var (
+		logBuffer bytes.Buffer
+		found     bool
+	)
+
 	erdtree := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			t.Errorf("expected GET, got %s", r.Method)
@@ -239,10 +246,25 @@ func TestNewRouterGetProductByID(t *testing.T) {
 		"/api/v1/products/42",
 		nil,
 	)
-
 	recorder := httptest.NewRecorder()
 
+	loger := log.Writer()
+	log.SetOutput(&logBuffer)
+	t.Cleanup(func() { log.SetOutput(loger) })
+
 	router.ServeHTTP(recorder, request)
+
+	lines := strings.Split(logBuffer.String(), "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "upstream=erdtree") && strings.Contains(line, "status=200") {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		t.Errorf("expected: %s, received: %s", "upstream=erdtree", logBuffer.String())
+	}
 
 	if recorder.Code != http.StatusOK {
 		t.Errorf("expected: %d, received: %d", http.StatusOK, recorder.Code)
