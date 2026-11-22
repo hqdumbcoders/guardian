@@ -985,6 +985,58 @@ func TestNewRouterForwardsLoginBodyWithoutLoggingPassword(t *testing.T) {
 
 }
 
+func TestNewRouterForwardsBookingCreation(t *testing.T) {
+	erdtree := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		if r.Header.Get("Content-Type") != "application/json" {
+			t.Errorf("expected application/json, got %s", r.Header.Get("Content-Type"))
+		}
+
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+
+		if string(body) != `{"slot_id":42}` {
+			t.Errorf("expected %s, got %s", `{"slot_id":42}`, string(body))
+		}
+
+		w.WriteHeader(http.StatusCreated)
+		w.Write([]byte(`{"id":123,"slot_id":42}`))
+	}))
+	defer erdtree.Close()
+
+	cfg := config.Config{
+		ErdtreeURL: erdtree.URL,
+		GladosURL:  "http://glados:8002",
+	}
+
+	router, err := newRouter(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/bookings",
+		strings.NewReader(`{"slot_id":42}`),
+	)
+	request.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusCreated {
+		t.Errorf("expected: %d, received: %d", http.StatusCreated, recorder.Code)
+	}
+
+	if recorder.Body.String() != `{"id":123,"slot_id":42}` {
+		t.Errorf("expected: %s, received: %s", `{"id":123,"slot_id":42}`, recorder.Body.String())
+	}
+
+}
+
 func TestNewRouterDoesNotRetryBookingCreation(t *testing.T) {
 	var countPostReq atomic.Int32
 	erdtree := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
