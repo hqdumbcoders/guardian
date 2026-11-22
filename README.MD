@@ -80,6 +80,38 @@ The `.env` file is used for local configuration
 and must not be committed to the repository. 
 Use `example.env` as a template
 
+Guardian uses a fixed 5-second timeout for upstream response headers. The timer
+starts after Guardian finishes sending the request, including its body.
+
+## Error responses
+
+These examples use NGINX on port `80` as in the quick start. If you run Guardian
+with `make run`, use `http://localhost:8000` instead.
+
+```sh
+# Unknown route returns 404 Not Found.
+curl -i http://localhost/api/v1/unknown
+
+# Unsupported method on a known route returns 405 Method Not Allowed.
+curl -i -X POST http://localhost/api/v1/products/42
+```
+
+The `405` response includes an `Allow` header listing the supported methods for
+that path.
+
+To reproduce upstream failures, send this request with `ERDTREE_URL` pointing
+to a test upstream.
+
+```sh
+curl -i http://localhost/api/v1/products/42
+```
+
+- `502 Bad Gateway` if the test upstream refuses the connection.
+- `504 Gateway Timeout` if the test upstream takes longer than 5 seconds to send
+  its response headers.
+
+Guardian returns an empty response body for both upstream errors.
+
 ## Development 
 
 When running Guardian locally, load the 
