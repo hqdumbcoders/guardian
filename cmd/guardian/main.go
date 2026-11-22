@@ -10,6 +10,20 @@ import (
 	"net/url"
 )
 
+type statusWriter struct {
+	http.ResponseWriter
+	status int
+}
+
+func (w *statusWriter) WriteHeader(status int) {
+	w.status = status
+	w.ResponseWriter.WriteHeader(status)
+}
+
+func (w *statusWriter) Unwrap() http.ResponseWriter {
+	return w.ResponseWriter
+}
+
 const (
 	appName    = "guardian"
 	appVersion = "0.1.0"
@@ -88,6 +102,27 @@ func newRouter(cfg config.Config) (*http.ServeMux, error) {
 	return mux, nil
 }
 
+func logLocalRoutingErrors(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		response := &statusWriter{
+			ResponseWriter: w,
+			status:         http.StatusOK,
+		}
+		next.ServeHTTP(response, r)
+
+		if r.Pattern != "" {
+			return
+		}
+
+		switch response.status {
+		case http.StatusNotFound, http.StatusMethodNotAllowed:
+			id, _ := requestid.FromContext(r.Context())
+			log.Printf("status=%d, method=%s, path=%s, correlation_id=%s",
+				response.status, r.Method, r.URL.EscapedPath(), id)
+		}
+	})
+}
+
 func newServer(cfg config.Config) (*http.Server, error) {
 	handler, err := newRouter(cfg)
 	if err != nil {
@@ -96,7 +131,7 @@ func newServer(cfg config.Config) (*http.Server, error) {
 
 	return &http.Server{
 		Addr:    ":8000",
-		Handler: requestid.Middleware(handler),
+		Handler: requestid.Middleware(logLocalRoutingErrors(handler)),
 	}, nil
 }
 

@@ -134,6 +134,58 @@ func TestNewServer(t *testing.T) {
 
 }
 
+func TestNewServerLogsUnknownRouteWithCorrelationID(t *testing.T) {
+	var (
+		logBuffer bytes.Buffer
+		found     bool
+	)
+
+	cfg := config.Config{
+		ErdtreeURL: "http://localhost:8001",
+		GladosURL:  "http://localhost:8002",
+	}
+
+	serv, err := newServer(cfg)
+	if err != nil {
+		t.Fatalf("failed to create server: %v", err)
+	}
+
+	request := httptest.NewRequest("GET", "/api/v1/unknown", nil)
+	recorder := httptest.NewRecorder()
+
+	if serv.Handler == nil {
+		t.Fatal("expected Handler to be non-nil")
+	}
+
+	loger := log.Writer()
+	log.SetOutput(&logBuffer)
+	t.Cleanup(func() { log.SetOutput(loger) })
+
+	serv.Handler.ServeHTTP(recorder, request)
+
+	lines := strings.Split(logBuffer.String(), "\n")
+	for _, line := range lines {
+		_, tail, ok := strings.Cut(line, "correlation_id=")
+		id, _, _ := strings.Cut(tail, ",")
+		hasCorrelationID := ok && strings.TrimSpace(id) != ""
+
+		if hasCorrelationID && strings.Contains(line, "status=404") &&
+			strings.Contains(line, "method=GET") && strings.Contains(line, "path=/api/v1/unknown") {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		t.Errorf("missing log entry for GET /api/v1/unknown with status=404 and a non-empty correlation_id")
+	}
+
+	if recorder.Code != http.StatusNotFound {
+		t.Errorf("expected: %d, received: %d", http.StatusNotFound, recorder.Code)
+	}
+
+}
+
 func TestParseUpstreamURL(t *testing.T) {
 	tests := []struct {
 		name    string
