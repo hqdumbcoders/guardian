@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-func New(target *url.URL) http.Handler {
+func New(target *url.URL, upstreamName string) http.Handler {
 	reverseProxy := httputil.NewSingleHostReverseProxy(target)
 
 	clone := http.DefaultTransport.(*http.Transport).Clone()
@@ -22,9 +22,13 @@ func New(target *url.URL) http.Handler {
 		id, ok := requestid.FromContext(r.Context())
 		if errors.Is(err, context.DeadlineExceeded) {
 			if !ok || id == "" {
-				log.Printf("status: %d upstream timeout", http.StatusGatewayTimeout)
+				log.Printf("upstream=%s, status=%d, method=%s, path=%s, "+
+					"upstream timeout", upstreamName, http.StatusGatewayTimeout,
+					r.Method, r.URL.EscapedPath())
 			} else {
-				log.Printf("correlation_id=%s, status: %d upstream timeout", id, http.StatusGatewayTimeout)
+				log.Printf("upstream=%s, status=%d, method=%s, path=%s, "+
+					"correlation_id=%s, upstream timeout", upstreamName,
+					http.StatusGatewayTimeout, r.Method, r.URL.EscapedPath(), id)
 			}
 
 			w.WriteHeader(http.StatusGatewayTimeout)
@@ -32,9 +36,13 @@ func New(target *url.URL) http.Handler {
 		}
 
 		if !ok || id == "" {
-			log.Printf("status: %d upstream request failed", http.StatusBadGateway)
+			log.Printf("upstream=%s, status=%d, method=%s, path=%s, "+
+				"upstream request failed", upstreamName, http.StatusBadGateway,
+				r.Method, r.URL.EscapedPath())
 		} else {
-			log.Printf("correlation_id=%s, status: %d upstream request failed", id, http.StatusBadGateway)
+			log.Printf("upstream=%s, status=%d, method=%s, path=%s, "+
+				"correlation_id=%s, upstream request failed", upstreamName,
+				http.StatusBadGateway, r.Method, r.URL.EscapedPath(), id)
 		}
 
 		w.WriteHeader(http.StatusBadGateway)
@@ -43,9 +51,11 @@ func New(target *url.URL) http.Handler {
 	reverseProxy.ModifyResponse = func(res *http.Response) error {
 		id, ok := requestid.FromContext(res.Request.Context())
 		if !ok || id == "" {
-			log.Printf("status: %d", res.StatusCode)
+			log.Printf("upstream=%s, status=%d, method=%s, path=%s", upstreamName, res.StatusCode,
+				res.Request.Method, res.Request.URL.EscapedPath())
 		} else {
-			log.Printf("correlation_id=%s, status: %d", id, res.StatusCode)
+			log.Printf("upstream=%s, status=%d, method=%s, path=%s, correlation_id=%s",
+				upstreamName, res.StatusCode, res.Request.Method, res.Request.URL.EscapedPath(), id)
 		}
 
 		return nil
