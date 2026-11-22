@@ -909,3 +909,77 @@ func TestNewRouterForwardsAuthorization(t *testing.T) {
 	}
 
 }
+
+func TestNewRouterForwardsLoginBodyWithoutLoggingPassword(t *testing.T) {
+	var (
+		logBuffer bytes.Buffer
+		found     bool
+	)
+
+	glados := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		if r.Header.Get("Content-Type") != "application/json" {
+			t.Errorf("expected application/json, got %s", r.Header.Get("Content-Type"))
+		}
+
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+
+		if string(body) != `{"password":"test-login-password"}` {
+			t.Errorf("expected %s, got %s", `{"password":"test-login-password"}`, string(body))
+		}
+
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer glados.Close()
+
+	cfg := config.Config{
+		ErdtreeURL: "http://erdtree:8001",
+		GladosURL:  glados.URL,
+	}
+
+	router, err := newRouter(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/auth/login",
+		strings.NewReader(`{"password":"test-login-password"}`),
+	)
+	request.Header.Set("Content-Type", "application/json")
+
+	recorder := httptest.NewRecorder()
+
+	loger := log.Writer()
+	log.SetOutput(&logBuffer)
+	t.Cleanup(func() { log.SetOutput(loger) })
+
+	router.ServeHTTP(recorder, request)
+
+	lines := strings.Split(logBuffer.String(), "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "upstream=glados") && strings.Contains(line, "status=200") &&
+			strings.Contains(line, "method=POST") && strings.Contains(line, "path=/api/v1/auth/login") {
+			found = true
+			break
+		}
+	}
+
+	if strings.Contains(logBuffer.String(), "test-login-password") {
+		t.Errorf("password should not be included in the log.")
+	}
+
+	if !found {
+		t.Errorf("missing log entry for POST /api/v1/auth/login (upstream=glados, status=200)")
+	}
+
+	if recorder.Code != http.StatusOK {
+		t.Errorf("expected: %d, received: %d", http.StatusOK, recorder.Code)
+	}
+
+}
